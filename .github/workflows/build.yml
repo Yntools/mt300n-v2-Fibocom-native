@@ -1,0 +1,104 @@
+name: Build GL-MT300N-V2 Firmware
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            subversion \
+            build-essential \
+            git-core \
+            libncurses5-dev \
+            zlib1g-dev \
+            gawk \
+            flex \
+            quilt \
+            libssl-dev \
+            xsltproc \
+            libxml-parser-perl \
+            mercurial \
+            bzr \
+            ecj \
+            cvs \
+            unzip \
+            wget
+
+      - name: Clone GL.iNet SDK and set up feeds
+        run: |
+          git clone https://github.com/gl-inet/imagebuilder-lede-ramips.git
+          cd imagebuilder-lede-ramips
+          
+          # Add modemfeed repository
+          echo "src-git modemfeed https://github.com/koshev-msk/modemfeed.git" >> feeds.conf.default
+          
+          # Update and install all feeds
+          ./scripts/feeds update -a
+          ./scripts/feeds install -a
+
+      - name: Compile packages
+        working-directory: imagebuilder-lede-ramips
+        run: |
+          make PROFILE=gl-mt300n-v2 package/feeds/modemfeed/xmm-modem/compile V=s
+          make PROFILE=gl-mt300n-v2 package/feeds/modemfeed/luci-proto-xmm/compile V=s
+          make PROFILE=gl-mt300n-v2 package/feeds/modemfeed/modeminfo/compile V=s
+          make PROFILE=gl-mt300n-v2 package/feeds/modemfeed/modeminfo-serial-fibocom/compile V=s
+          make PROFILE=gl-mt300n-v2 package/feeds/modemfeed/modeminfo-serial-xmm/compile V=s
+          make PROFILE=gl-mt300n-v2 package/feeds/modemfeed/luci-app-modeminfo/compile V=s
+          make PROFILE=gl-mt300n-v2 package/feeds/modemfeed/luci-i18n-modeminfo-ru/compile V=s
+          make PROFILE=gl-mt300n-v2 package/feeds/modemfeed/atinout/compile V=s
+          make PROFILE=gl-mt300n-v2 package/feeds/modemfeed/luci-app-atinout/compile V=s
+          make PROFILE=gl-mt300n-v2 package/feeds/modemfeed/luci-i18n-atinout-ru/compile V=s
+
+      - name: Upload compiled packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: modem-packages
+          path: imagebuilder-lede-ramips/bin/packages/*/modemfeed/*
+          retention-days: 5
+
+      - name: Clone config files
+        working-directory: imagebuilder-lede-ramips
+        run: |
+          git clone https://github.com/gl-inet/openwrt-files.git files
+
+      - name: Build firmware
+        working-directory: imagebuilder-lede-ramips
+        run: |
+          make image PROFILE=gl-mt300n-v2 \
+          PACKAGES="kmod-mt7628 uci2dat mtk-iwinfo luci \
+          modemmanager \
+          luci-proto-modemmanager \
+          kmod-usb-net-cdc-mbim \
+          xmm-modem \
+          luci-proto-xmm \
+          modeminfo \
+          modeminfo-serial-fibocom \
+          modeminfo-serial-xmm \
+          luci-app-modeminfo \
+          luci-i18n-modeminfo-ru \
+          atinout \
+          luci-app-atinout \
+          luci-i18n-atinout-ru \
+          kmod-usb-acm" \
+          FILES=files/files-clean-mt7628/
+
+      - name: Upload firmware artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: gl-mt300n-v2-firmware
+          path: imagebuilder-lede-ramips/bin/targets/ramips/mt76x8/*sysupgrade.bin
+          retention-days: 5
