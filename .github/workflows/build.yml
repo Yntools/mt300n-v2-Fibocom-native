@@ -86,9 +86,17 @@ jobs:
           ./download.sh ramips-1907
           
           cd sdk/1907/ramips
-          echo "src-git modemfeed https://github.com/koshev-msk/modemfeed.git" >> feeds.conf
+          # Сначала добавляем все стандартные фиды
           ./scripts/feeds update -a
           ./scripts/feeds install -a
+          
+          # Теперь добавляем modemfeed
+          echo "src-git modemfeed https://github.com/koshev-msk/modemfeed.git" >> feeds.conf
+          ./scripts/feeds update modemfeed
+          ./scripts/feeds install -a -p modemfeed
+          
+          # Создаем базовый конфиг
+          make defconfig
 
       - name: Compile modemfeed packages
         working-directory: sdk/sdk/1907/ramips
