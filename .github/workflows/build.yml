@@ -1,6 +1,6 @@
 name: Build GL-MT300N-V2 Custom Firmware
 # Created by: Yntools
-# Last updated: 2025-01-16 22:34:02
+# Last updated: 2025-01-16 22:51:07
 
 on:
   push:
@@ -71,13 +71,16 @@ jobs:
             unzip \
             wget \
             zlib1g-dev \
-            zstd
+            zstd \
+            dos2unix
 
       # Шаг 1: Клонируем SDK и скачиваем правильный target
       - name: Setup GL.iNet SDK
         run: |
           git clone https://github.com/gl-inet/sdk.git
           cd sdk
+          # Конвертируем CRLF в LF для скрипта
+          dos2unix download.sh
           chmod +x download.sh
           ./download.sh ramips-1907
           
