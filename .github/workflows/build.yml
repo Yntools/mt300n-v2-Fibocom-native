@@ -35,12 +35,12 @@ jobs:
             jikespg \
             libgtk2.0-dev \
             libncurses5-dev \
-            libssl1.0-dev \
+            libssl-dev \
             make \
             mercurial \
             patch \
             perl-modules \
-            python2.7-dev \
+            python-dev \
             rsync \
             ruby \
             sdcc \
