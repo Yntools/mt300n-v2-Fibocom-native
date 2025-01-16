@@ -21,9 +21,9 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            gl-infra-builder/openwrt/dl
-            gl-infra-builder/openwrt/feeds
-          key: ${{runner.os}}-downloads-${{hashFiles('gl-infra-builder/openwrt/feeds.conf.default')}}
+            sdk/openwrt/dl
+            sdk/openwrt/feeds
+          key: ${{runner.os}}-downloads-${{hashFiles('sdk/openwrt/feeds.conf.default')}}
           restore-keys: |
             ${{runner.os}}-downloads-
 
@@ -31,9 +31,9 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            gl-infra-builder/openwrt/staging_dir
-            gl-infra-builder/openwrt/build_dir
-          key: ${{runner.os}}-toolchain-${{hashFiles('gl-infra-builder/openwrt/.config')}}
+            sdk/openwrt/staging_dir
+            sdk/openwrt/build_dir
+          key: ${{runner.os}}-toolchain-${{hashFiles('sdk/openwrt/.config')}}
           restore-keys: |
             ${{runner.os}}-toolchain-
 
@@ -65,21 +65,21 @@ jobs:
             zlib1g-dev \
             zstd
 
-      # Шаг 1: Клонируем GL.iNet SDK
+      # Шаг 1: Клонируем правильный GL.iNet SDK
       - name: Clone GL.iNet SDK
         run: |
-          git clone git://github.com/gl-inet/gl-infra-builder.git
-          cd gl-infra-builder
-          git checkout main
+          git clone https://github.com/gl-inet/sdk.git
+          cd sdk
+          git checkout master
 
-      # Шаг 2: Подготавливаем окружение GL.iNet
-      - name: Setup GL.iNet build environment
+      # Шаг 2: Подготавливаем окружение
+      - name: Setup build environment
         run: |
-          cd gl-infra-builder
+          cd sdk
           python3 setup.py -c configs/mt300n-v2.yml
           cd openwrt
           
-          # Добавляем feed для модемов
+          # Добавляем feed для модемов (используем master ветку)
           echo "src-git modemfeed https://github.com/koshev-msk/modemfeed.git" >> feeds.conf.default
           
           # Обновляем и устанавливаем feeds
@@ -92,7 +92,7 @@ jobs:
 
       # Шаг 3: Конфигурируем сборку
       - name: Configure build
-        working-directory: gl-infra-builder/openwrt
+        working-directory: sdk/openwrt
         run: |
           cat > .config << 'EOF'
           CONFIG_TARGET_ramips=y
@@ -106,8 +106,8 @@ jobs:
           # Базовая система и сеть
           CONFIG_PACKAGE_dnsmasq-full=y
           CONFIG_PACKAGE_dropbear=y
-          CONFIG_PACKAGE_firewall4=y
-          CONFIG_PACKAGE_nftables=y
+          CONFIG_PACKAGE_firewall=y
+          CONFIG_PACKAGE_iptables=y
           CONFIG_PACKAGE_ip-full=y
           CONFIG_PACKAGE_ipset=y
           
@@ -185,33 +185,28 @@ jobs:
           # Применяем конфигурацию
           make defconfig
 
-      # Шаг 4: Проверка размера прошивки
-      - name: Check firmware size
-        working-directory: gl-infra-builder/openwrt
-        run: |
-          echo "Checking firmware size..."
-          find bin/targets/ramips/mt76x8/ -name "*sysupgrade.bin" -exec ls -lh {} \;
-          find bin/targets/ramips/mt76x8/ -name "*factory.bin" -exec ls -lh {} \;
-
-      # Шаг 5: Собираем прошивку
+      # Шаг 4: Собираем прошивку
       - name: Build firmware
-        working-directory: gl-infra-builder/openwrt
+        working-directory: sdk/openwrt
         env:
           FORCE_UNSAFE_CONFIGURE: 1
         run: |
-          # Сначала компилируем пакеты из modemfeed
-          make package/feeds/modemfeed/{xmm-modem,modeminfo,atinout}/compile -j$(nproc) || make package/feeds/modemfeed/{xmm-modem,modeminfo,atinout}/compile V=s
+          # Собираем пакеты из modemfeed по одному для лучшего контроля
+          for package in xmm-modem modeminfo atinout; do
+            echo "Building $package..."
+            make package/feeds/modemfeed/$package/{clean,compile} V=s
+          done
           
           # Затем собираем всю прошивку
           make download -j8
           make -j$(nproc) || make -j1 V=s
 
-      # Шаг 6: Собираем артефакты
+      # Шаг 5: Собираем артефакты
       - name: Collect artifacts
         uses: actions/upload-artifact@v4
         with:
           name: gl-mt300n-v2-firmware
           path: |
-            gl-infra-builder/openwrt/bin/targets/ramips/mt76x8/*sysupgrade.bin
-            gl-infra-builder/openwrt/bin/targets/ramips/mt76x8/*factory.bin
+            sdk/openwrt/bin/targets/ramips/mt76x8/*sysupgrade.bin
+            sdk/openwrt/bin/targets/ramips/mt76x8/*factory.bin
           retention-days: 5
