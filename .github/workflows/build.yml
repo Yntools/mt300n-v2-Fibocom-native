@@ -1,6 +1,6 @@
 name: Build GL-MT300N-V2 Custom Firmware
 # Created by: Yntools
-# Last updated: 2025-01-16
+# Last updated: 2025-01-16 22:34:02
 
 on:
   push:
@@ -21,40 +21,48 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            sdk/openwrt/dl
-            sdk/openwrt/feeds
-          key: ${{runner.os}}-downloads-${{hashFiles('sdk/openwrt/feeds.conf.default')}}
+            sdk/1907/ramips/dl
+            sdk/1907/ramips/feeds
+          key: ${{runner.os}}-downloads-ramips1907-${{hashFiles('sdk/1907/ramips/feeds.conf.default')}}
           restore-keys: |
-            ${{runner.os}}-downloads-
+            ${{runner.os}}-downloads-ramips1907-
 
       - name: Cache toolchain
         uses: actions/cache@v4
         with:
           path: |
-            sdk/openwrt/staging_dir
-            sdk/openwrt/build_dir
-          key: ${{runner.os}}-toolchain-${{hashFiles('sdk/openwrt/.config')}}
+            sdk/1907/ramips/staging_dir
+            sdk/1907/ramips/build_dir
+          key: ${{runner.os}}-toolchain-ramips1907-${{hashFiles('sdk/1907/ramips/.config')}}
           restore-keys: |
-            ${{runner.os}}-toolchain-
+            ${{runner.os}}-toolchain-ramips1907-
 
       - name: Install build dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y \
-            build-essential \
-            ccache \
-            ecj \
+            asciidoc \
+            bash \
+            bc \
+            binutils \
+            bzip2 \
             fastjar \
-            file \
-            g++ \
+            flex \
             gawk \
+            gcc \
+            genisoimage \
             gettext \
             git \
-            java-propose-classpath \
-            libelf-dev \
+            intltool \
+            jikespg \
+            libgtk2.0-dev \
             libncurses5-dev \
             libssl-dev \
-            python3-dev \
+            make \
+            mercurial \
+            patch \
+            perl-modules \
+            python3 \
             python3-distutils \
             python3-setuptools \
             rsync \
@@ -65,21 +73,16 @@ jobs:
             zlib1g-dev \
             zstd
 
-      # Шаг 1: Клонируем правильный GL.iNet SDK
-      - name: Clone GL.iNet SDK
+      # Шаг 1: Клонируем SDK и скачиваем правильный target
+      - name: Setup GL.iNet SDK
         run: |
           git clone https://github.com/gl-inet/sdk.git
           cd sdk
-          git checkout master
-
-      # Шаг 2: Подготавливаем окружение
-      - name: Setup build environment
-        run: |
-          cd sdk
-          python3 setup.py -c configs/mt300n-v2.yml
-          cd openwrt
+          chmod +x download.sh
+          ./download.sh ramips-1907
           
-          # Добавляем feed для модемов (используем master ветку)
+          cd 1907/ramips
+          # Добавляем feed для модемов
           echo "src-git modemfeed https://github.com/koshev-msk/modemfeed.git" >> feeds.conf.default
           
           # Обновляем и устанавливаем feeds
@@ -90,9 +93,9 @@ jobs:
           ./scripts/feeds update modemfeed
           ./scripts/feeds install -a -p modemfeed
 
-      # Шаг 3: Конфигурируем сборку
+      # Шаг 2: Конфигурируем сборку
       - name: Configure build
-        working-directory: sdk/openwrt
+        working-directory: sdk/1907/ramips
         run: |
           cat > .config << 'EOF'
           CONFIG_TARGET_ramips=y
@@ -111,10 +114,9 @@ jobs:
           CONFIG_PACKAGE_ip-full=y
           CONFIG_PACKAGE_ipset=y
           
-          # Wi-Fi (обязательные компоненты)
+          # Wi-Fi компоненты
           CONFIG_PACKAGE_kmod-mt7628=y
-          CONFIG_PACKAGE_gl-sdk4-mtk-wifi-v2=y
-          CONFIG_PACKAGE_wpad-basic-wolfssl=y
+          CONFIG_PACKAGE_wpad-basic=y
           CONFIG_PACKAGE_hostapd-common=y
           CONFIG_PACKAGE_wireless-tools=y
           CONFIG_PACKAGE_iwinfo=y
@@ -129,8 +131,8 @@ jobs:
           # LED поддержка
           CONFIG_PACKAGE_kmod-leds-gpio=y
           
-          # LuCI (оптимизированный набор)
-          CONFIG_PACKAGE_luci-light=y
+          # LuCI
+          CONFIG_PACKAGE_luci=y
           CONFIG_PACKAGE_luci-base=y
           CONFIG_PACKAGE_luci-mod-admin-full=y
           CONFIG_PACKAGE_luci-mod-network=y
@@ -141,72 +143,61 @@ jobs:
           CONFIG_PACKAGE_luci-i18n-firewall-ru=y
           CONFIG_PACKAGE_luci-i18n-status-ru=y
           
-          # Пакеты для модемов
+          # Пакеты Кошева для модемов
           CONFIG_PACKAGE_xmm-modem=y
           CONFIG_PACKAGE_luci-proto-xmm=y
           CONFIG_PACKAGE_modeminfo=y
           CONFIG_PACKAGE_luci-app-modeminfo=y
+          CONFIG_PACKAGE_modeminfo-serial-xmm=y
+          CONFIG_PACKAGE_modeminfo-serial-fibocom=y
           CONFIG_PACKAGE_luci-i18n-modeminfo-ru=y
           CONFIG_PACKAGE_atinout=y
           CONFIG_PACKAGE_luci-app-atinout=y
           CONFIG_PACKAGE_luci-i18n-atinout-ru=y
           
-          # Отключаем ненужные компоненты GL.iNet
-          CONFIG_PACKAGE_gl-base-files=n
-          CONFIG_PACKAGE_gl-lua=n
-          CONFIG_PACKAGE_gl-ui=n
-          CONFIG_PACKAGE_gl-mqtt=n
-          CONFIG_PACKAGE_gl-tertf=n
-          CONFIG_PACKAGE_gl-util=n
-          CONFIG_PACKAGE_gl-wifi-core=n
-          
-          # Отключаем IPv6 для экономии места
+          # Отключаем IPv6
           CONFIG_IPV6=n
           CONFIG_PACKAGE_ip6tables=n
           CONFIG_PACKAGE_odhcp6c=n
           CONFIG_PACKAGE_luci-proto-ipv6=n
           CONFIG_PACKAGE_odhcpd-ipv6only=n
           
-          # Включаем поддержку zram для swap
+          # Оптимизация и дополнительные утилиты
           CONFIG_PACKAGE_zram-swap=y
           CONFIG_PACKAGE_kmod-zram=y
-          
-          # Оптимизация размера и файловой системы
           CONFIG_TARGET_IMAGES_GZIP=y
           CONFIG_PACKAGE_kmod-nls-base=y
           CONFIG_TARGET_SQUASHFS_BLOCK_SIZE=256
-          
-          # Важные утилиты
           CONFIG_PACKAGE_htop=y
           CONFIG_PACKAGE_curl=y
-          CONFIG_PACKAGE_wget-ssl=y
+          CONFIG_PACKAGE_wget=y
           EOF
           
           # Применяем конфигурацию
           make defconfig
 
-      # Шаг 4: Собираем прошивку
+      # Шаг 3: Собираем прошивку
       - name: Build firmware
-        working-directory: sdk/openwrt
+        working-directory: sdk/1907/ramips
         env:
           FORCE_UNSAFE_CONFIGURE: 1
         run: |
-          # Собираем пакеты из modemfeed по одному для лучшего контроля
-          for package in xmm-modem modeminfo atinout; do
+          # Собираем пакеты из modemfeed по одному
+          for package in xmm-modem luci-proto-xmm modeminfo-serial-xmm modeminfo-serial-fibocom modeminfo luci-app-modeminfo luci-i18n-modeminfo-ru atinout luci-app-atinout luci-i18n-atinout-ru; do
             echo "Building $package..."
             make package/feeds/modemfeed/$package/{clean,compile} V=s
           done
           
-          # Затем собираем всю прошивку
+          # Собираем прошивку
           make download -j8
           make -j$(nproc) || make -j1 V=s
 
-      # Шаг 5: Собираем артефакты
+      # Шаг 4: Собираем артефакты
       - name: Collect artifacts
         uses: actions/upload-artifact@v4
         with:
           name: gl-mt300n-v2-firmware
           path: |
-            sdk/openwrt/bin/targets/ramips/mt76x8/*sysupgrade.bin
-            sdk/openwrt/bin/targets/ramips/mt76x8/*factory.bin
+            sdk/1907/ramips/bin/targets/ramips/mt76x8/*sysupgrade.bin
+            sdk/1907/ramips/bin/targets/ramips/mt76x8/*factory.bin
           retention-days: 5
