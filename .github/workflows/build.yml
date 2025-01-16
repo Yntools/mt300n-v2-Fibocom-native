@@ -19,69 +19,85 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y \
-            subversion \
-            build-essential \
-            git-core \
-            libncurses5-dev \
-            zlib1g-dev \
-            gawk \
+            asciidoc \
+            bash \
+            bc \
+            binutils \
+            bzip2 \
+            fastjar \
             flex \
-            quilt \
-            libssl-dev \
-            xsltproc \
-            libxml-parser-perl \
+            gawk \
+            gcc \
+            genisoimage \
+            gettext \
+            git \
+            intltool \
+            jikespg \
+            libgtk2.0-dev \
+            libncurses5-dev \
+            libssl1.0-dev \
+            make \
             mercurial \
-            bzr \
-            ecj \
-            cvs \
+            patch \
+            perl-modules \
+            python2.7-dev \
+            rsync \
+            ruby \
+            sdcc \
+            subversion \
             unzip \
-            wget
+            util-linux \
+            wget \
+            xsltproc \
+            zlib1g-dev
 
-      - name: Clone GL.iNet SDK and set up feeds
+      - name: Get SDK and setup feeds
         run: |
-          git clone https://github.com/gl-inet/imagebuilder-lede-ramips.git
-          cd imagebuilder-lede-ramips
+          git clone https://github.com/gl-inet/sdk.git
+          cd sdk
+          ./download.sh ramips-1907
           
-          # Add modemfeed repository
-          echo "src-git modemfeed https://github.com/koshev-msk/modemfeed.git" >> feeds.conf.default
-          
-          # Update and install all feeds
+          cd 1907/ramips
+          echo "src-git modemfeed https://github.com/koshev-msk/modemfeed.git" >> feeds.conf
           ./scripts/feeds update -a
           ./scripts/feeds install -a
 
-      - name: Compile packages
-        working-directory: imagebuilder-lede-ramips
+      - name: Compile modemfeed packages
+        working-directory: sdk/1907/ramips
         run: |
-          make PROFILE=gl-mt300n-v2 package/feeds/modemfeed/xmm-modem/compile V=s
-          make PROFILE=gl-mt300n-v2 package/feeds/modemfeed/luci-proto-xmm/compile V=s
-          make PROFILE=gl-mt300n-v2 package/feeds/modemfeed/modeminfo/compile V=s
-          make PROFILE=gl-mt300n-v2 package/feeds/modemfeed/modeminfo-serial-fibocom/compile V=s
-          make PROFILE=gl-mt300n-v2 package/feeds/modemfeed/modeminfo-serial-xmm/compile V=s
-          make PROFILE=gl-mt300n-v2 package/feeds/modemfeed/luci-app-modeminfo/compile V=s
-          make PROFILE=gl-mt300n-v2 package/feeds/modemfeed/luci-i18n-modeminfo-ru/compile V=s
-          make PROFILE=gl-mt300n-v2 package/feeds/modemfeed/atinout/compile V=s
-          make PROFILE=gl-mt300n-v2 package/feeds/modemfeed/luci-app-atinout/compile V=s
-          make PROFILE=gl-mt300n-v2 package/feeds/modemfeed/luci-i18n-atinout-ru/compile V=s
+          make package/feeds/modemfeed/xmm-modem/compile V=s
+          make package/feeds/modemfeed/luci-proto-xmm/compile V=s
+          make package/feeds/modemfeed/modeminfo/compile V=s
+          make package/feeds/modemfeed/modeminfo-serial-fibocom/compile V=s
+          make package/feeds/modemfeed/modeminfo-serial-xmm/compile V=s
+          make package/feeds/modemfeed/luci-app-modeminfo/compile V=s
+          make package/feeds/modemfeed/luci-i18n-modeminfo-ru/compile V=s
+          make package/feeds/modemfeed/atinout/compile V=s
+          make package/feeds/modemfeed/luci-app-atinout/compile V=s
+          make package/feeds/modemfeed/luci-i18n-atinout-ru/compile V=s
 
       - name: Upload compiled packages
         uses: actions/upload-artifact@v4
         with:
           name: modem-packages
-          path: imagebuilder-lede-ramips/bin/packages/*/modemfeed/*
+          path: sdk/1907/ramips/bin/packages/*/modemfeed/*
           retention-days: 5
 
-      - name: Clone config files
-        working-directory: imagebuilder-lede-ramips
+      - name: Clone imagebuilder
         run: |
+          git clone https://github.com/gl-inet/imagebuilder-lede-ramips.git
+          cd imagebuilder-lede-ramips
           git clone https://github.com/gl-inet/openwrt-files.git files
+          
+          # Copy compiled packages
+          mkdir -p packages
+          cp -r ../sdk/1907/ramips/bin/packages/*/modemfeed/* packages/
 
       - name: Build firmware
         working-directory: imagebuilder-lede-ramips
         run: |
           make image PROFILE=gl-mt300n-v2 \
           PACKAGES="kmod-mt7628 uci2dat mtk-iwinfo luci \
-          modemmanager \
-          luci-proto-modemmanager \
           kmod-usb-net-cdc-mbim \
           xmm-modem \
           luci-proto-xmm \
