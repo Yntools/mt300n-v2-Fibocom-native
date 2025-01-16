@@ -21,11 +21,21 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            dl
-            feeds
-          key: ${{runner.os}}-downloads-${{hashFiles('feeds.conf.default')}}
+            gl-infra-builder/openwrt/dl
+            gl-infra-builder/openwrt/feeds
+          key: ${{runner.os}}-downloads-${{hashFiles('gl-infra-builder/openwrt/feeds.conf.default')}}
           restore-keys: |
             ${{runner.os}}-downloads-
+
+      - name: Cache toolchain
+        uses: actions/cache@v4
+        with:
+          path: |
+            gl-infra-builder/openwrt/staging_dir
+            gl-infra-builder/openwrt/build_dir
+          key: ${{runner.os}}-toolchain-${{hashFiles('gl-infra-builder/openwrt/.config')}}
+          restore-keys: |
+            ${{runner.os}}-toolchain-
 
       - name: Install build dependencies
         run: |
