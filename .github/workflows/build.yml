@@ -1,6 +1,6 @@
 name: Build GL-MT300N-V2 Custom Firmware
 # Created by: Yntools
-# Last updated: 2024-01-17 01:46:58
+# Last updated: 2024-01-17 01:59:18
 
 on:
   push:
@@ -21,9 +21,9 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            sdk/openwrt-sdk-ramips-1907/dl
-            sdk/openwrt-sdk-ramips-1907/feeds
-          key: ${{runner.os}}-downloads-ramips1907-${{hashFiles('sdk/openwrt-sdk-ramips-1907/feeds.conf.default')}}
+            sdk/openwrt-sdk-19.07.10-ramips-mt76x8_gcc-7.5.0_musl.Linux-x86_64/dl
+            sdk/openwrt-sdk-19.07.10-ramips-mt76x8_gcc-7.5.0_musl.Linux-x86_64/feeds
+          key: ${{runner.os}}-downloads-ramips1907-${{hashFiles('sdk/openwrt-sdk-19.07.10-ramips-mt76x8_gcc-7.5.0_musl.Linux-x86_64/feeds.conf.default')}}
           restore-keys: |
             ${{runner.os}}-downloads-ramips1907-
 
@@ -31,9 +31,9 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            sdk/openwrt-sdk-ramips-1907/staging_dir
-            sdk/openwrt-sdk-ramips-1907/build_dir
-          key: ${{runner.os}}-toolchain-ramips1907-${{hashFiles('sdk/openwrt-sdk-ramips-1907/.config')}}
+            sdk/openwrt-sdk-19.07.10-ramips-mt76x8_gcc-7.5.0_musl.Linux-x86_64/staging_dir
+            sdk/openwrt-sdk-19.07.10-ramips-mt76x8_gcc-7.5.0_musl.Linux-x86_64/build_dir
+          key: ${{runner.os}}-toolchain-ramips1907-${{hashFiles('sdk/openwrt-sdk-19.07.10-ramips-mt76x8_gcc-7.5.0_musl.Linux-x86_64/.config')}}
           restore-keys: |
             ${{runner.os}}-toolchain-ramips1907-
 
@@ -80,10 +80,22 @@ jobs:
           cd sdk
           chmod +x download.sh
           ./download.sh ramips-1907
+          # Проверяем что скачалось
+          ls -la
+          # Распаковываем SDK если он в архиве
+          if [ -f openwrt-sdk-ramips-mt7620_gcc-7.4.0_musl.Linux-x86_64.tar.xz ]; then
+            tar xf openwrt-sdk-ramips-mt7620_gcc-7.4.0_musl.Linux-x86_64.tar.xz
+          fi
+          if [ -f openwrt-sdk-19.07.10-ramips-mt76x8_gcc-7.5.0_musl.Linux-x86_64.tar.xz ]; then
+            tar xf openwrt-sdk-19.07.10-ramips-mt76x8_gcc-7.5.0_musl.Linux-x86_64.tar.xz
+          fi
+          # Показываем финальную структуру
+          ls -la
+          pwd
 
       # Шаг 2: Конфигурируем сборку
       - name: Configure build
-        working-directory: sdk/openwrt-sdk-ramips-1907
+        working-directory: sdk/openwrt-sdk-19.07.10-ramips-mt76x8_gcc-7.5.0_musl.Linux-x86_64
         run: |
           # Создаем базовый feeds.conf.default если его нет
           [ ! -f feeds.conf.default ] && cat > feeds.conf.default << 'EOF'
@@ -188,7 +200,7 @@ jobs:
 
       # Шаг 3: Собираем прошивку
       - name: Build firmware
-        working-directory: sdk/openwrt-sdk-ramips-1907
+        working-directory: sdk/openwrt-sdk-19.07.10-ramips-mt76x8_gcc-7.5.0_musl.Linux-x86_64
         env:
           FORCE_UNSAFE_CONFIGURE: 1
         run: |
@@ -208,6 +220,6 @@ jobs:
         with:
           name: gl-mt300n-v2-firmware
           path: |
-            sdk/openwrt-sdk-ramips-1907/bin/targets/ramips/mt76x8/*sysupgrade.bin
-            sdk/openwrt-sdk-ramips-1907/bin/targets/ramips/mt76x8/*factory.bin
+            sdk/openwrt-sdk-19.07.10-ramips-mt76x8_gcc-7.5.0_musl.Linux-x86_64/bin/targets/ramips/mt76x8/*sysupgrade.bin
+            sdk/openwrt-sdk-19.07.10-ramips-mt76x8_gcc-7.5.0_musl.Linux-x86_64/bin/targets/ramips/mt76x8/*factory.bin
           retention-days: 5
