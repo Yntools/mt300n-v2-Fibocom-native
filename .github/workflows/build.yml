@@ -75,15 +75,23 @@ jobs:
 
       # Шаг 1: Клонируем SDK и инициализируем
       - name: Setup GL.iNet SDK
-        working-directory: ${{ github.workspace }}
         run: |
           git clone https://github.com/gl-inet/sdk.git
-          chmod +x sdk/download.sh
           cd sdk
+          chmod +x download.sh
           ./download.sh ramips-1907
+          # Проверяем что у нас есть после выполнения скрипта
+          echo "Listing directories:"
+          ls -la
+          pwd
 
       # Шаг 2: Конфигурируем сборку
       - name: Configure build
+        run: |
+          # Проверяем где мы находимся
+          pwd
+          echo "Looking for SDK directory:"
+          find . -name "*ramips*" -type d
         working-directory: sdk/1907/ramips
         run: |
           # Добавляем feed для модемов
