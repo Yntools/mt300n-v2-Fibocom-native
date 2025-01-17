@@ -75,10 +75,11 @@ jobs:
 
       # Шаг 1: Клонируем SDK и инициализируем
       - name: Setup GL.iNet SDK
+        working-directory: ${{ github.workspace }}
         run: |
           git clone https://github.com/gl-inet/sdk.git
+          chmod +x sdk/download.sh
           cd sdk
-          chmod +x download.sh
           ./download.sh ramips-1907
 
       # Шаг 2: Конфигурируем сборку
