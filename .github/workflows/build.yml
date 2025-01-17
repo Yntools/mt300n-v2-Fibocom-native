@@ -74,21 +74,42 @@ jobs:
             zstd \
             dos2unix
 
-    # Шаг 1: Клонируем SDK и скачиваем правильный target
+   # Шаг 1: Клонируем SDK и скачиваем правильный target
       - name: Setup GL.iNet SDK
         run: |
           git clone https://github.com/gl-inet/sdk.git
           cd sdk
-          # Показываем содержимое скрипта до изменений
-          echo "Before conversion:"
-          cat -A download.sh
-          # Конвертируем CRLF в LF
-          sed -i 's/\r$//' download.sh
-          # Показываем после конвертации
-          echo "After conversion:"
-          cat -A download.sh
-          # Пробуем выполнить
-          bash download.sh ramips-1907
+          # Создаем новый скрипт с правильной кодировкой
+          echo '#!/bin/bash
+          
+          SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+          export SCRIPT_DIR
+          
+          usage() {
+              echo "Usage: "
+              echo "./download.sh [target]   # Download the appropriate SDK"
+              echo
+              echo "All available target list:"
+              echo "    ar71xx-1806     # usb150/ar150/ar300m16/mifi/ar750/ar750s/x750/x1200"
+              echo "    ramips-1806     # mt300n-v2/mt300a/mt300n/n300/vixmini"
+              echo "    ramips-1907     # mt1300 mt300n-v2/mt300a/mt300n/n300/vixmini"
+              echo "    ipq806x-qsdk53  # b1300/s1300"
+              echo "    mvebu-1907      # mv1000"
+          }
+          
+          if [ "$#" -ne 1 ]; then
+              usage
+              exit 1
+          fi
+          
+          wget "https://github.com/gl-inet/sdk/releases/download/sdk/$1.tar.xz" -O "$1.tar.xz"
+          if [ $? -eq 0 ]; then
+              tar xf "$1.tar.xz"
+              rm "$1.tar.xz"
+          fi' > download.sh
+          
+          chmod +x download.sh
+          ./download.sh ramips-1907
           
           cd 1907/ramips
           # Добавляем feed для модемов
