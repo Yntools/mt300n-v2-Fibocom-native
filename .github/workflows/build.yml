@@ -64,7 +64,7 @@ jobs:
             mercurial \
             patch \
             perl-modules \
-            python2 \
+            python2.7 \
             python3 \
             python3-distutils \
             python3-setuptools \
@@ -76,8 +76,6 @@ jobs:
             zlib1g-dev \
             zstd
           
-          # Создаем символическую ссылку python -> python3
-          sudo ln -sf /usr/bin/python3 /usr/bin/python
 
       # Шаг 1: Клонируем SDK и инициализируем
       - name: Setup GL.iNet SDK
