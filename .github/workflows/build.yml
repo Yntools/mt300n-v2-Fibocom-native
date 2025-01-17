@@ -1,6 +1,6 @@
 name: Build GL-MT300N-V2 Custom Firmware
 # Created by: Yntools
-# Last updated: 2024-01-17 09:45:54
+# Last updated: 2024-01-17 10:26:23
 
 on:
   push:
@@ -40,42 +40,7 @@ jobs:
           restore-keys: |
             ${{runner.os}}-toolchain-ramips1907-
 
-      - name: Install build dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            asciidoc \
-            bash \
-            bc \
-            binutils \
-            bzip2 \
-            fastjar \
-            flex \
-            gawk \
-            gcc \
-            mkisofs \
-            gettext \
-            git \
-            intltool \
-            jikespg \
-            libgtk2.0-dev \
-            libncurses5-dev \
-            libssl-dev \
-            make \
-            mercurial \
-            patch \
-            perl-modules \
-            python2.7 \
-            python3 \
-            python3-distutils \
-            python3-setuptools \
-            rsync \
-            subversion \
-            time \
-            unzip \
-            wget \
-            zlib1g-dev \
-            zstd
+      
 
       # Шаг 1: Клонируем SDK и инициализируем
       - name: Setup GL.iNet SDK
@@ -90,6 +55,20 @@ jobs:
           # Распаковываем SDK
           tar xf openwrt-sdk-19.07.10-ramips-mt76x8_gcc-7.5.0_musl.Linux-x86_64.tar.xz
           
+          cd $SDK_PATH
+          
+          # Обновляем и устанавливаем базовые feeds
+          ./scripts/feeds update -a
+          ./scripts/feeds install -a
+          
+          # Добавляем feed для модемов
+          echo "src-git modemfeed https://github.com/koshev-msk/modemfeed.git" >> feeds.conf.default
+          
+          # Важно: сначала обновить feed
+          ./scripts/feeds update modemfeed
+          # Затем установить все пакеты из feed
+          ./scripts/feeds install -a -p modemfeed
+          
           # Показываем финальную структуру
           ls -la
           pwd
@@ -98,105 +77,20 @@ jobs:
       - name: Configure build
         working-directory: ${{ env.WORKDIR }}/${{ env.SDK_PATH }}
         run: |
-          # Создаем базовый feeds.conf.default если его нет
-          [ ! -f feeds.conf.default ] && cat > feeds.conf.default << 'EOF'
-          src-git packages https://git.openwrt.org/feed/packages.git;openwrt-19.07
-          src-git luci https://git.openwrt.org/project/luci.git;openwrt-19.07
-          src-git routing https://git.openwrt.org/feed/routing.git;openwrt-19.07
-          src-git telephony https://git.openwrt.org/feed/telephony.git;openwrt-19.07
-          EOF
+          # Создаем базовую конфигурацию
+          make defconfig
           
-          # Добавляем feed для модемов
-          echo "src-git modemfeed https://github.com/koshev-msk/modemfeed.git" >> feeds.conf.default
+          # Конфигурируем необходимые пакеты
+          echo "CONFIG_PACKAGE_modeminfo=y" >> .config
+          echo "CONFIG_PACKAGE_luci-app-modeminfo=y" >> .config
+          echo "CONFIG_PACKAGE_modeminfo-serial-xmm=y" >> .config
+          echo "CONFIG_PACKAGE_modeminfo-serial-fibocom=y" >> .config
+          echo "CONFIG_PACKAGE_luci-i18n-modeminfo-ru=y" >> .config
+          echo "CONFIG_PACKAGE_atinout=y" >> .config
+          echo "CONFIG_PACKAGE_luci-app-atinout=y" >> .config
+          echo "CONFIG_PACKAGE_luci-i18n-atinout-ru=y" >> .config
           
-          # Отображаем содержимое для проверки
-          echo "Contents of feeds.conf.default:"
-          cat feeds.conf.default
-          
-          # Обновляем и устанавливаем feeds
-          ./scripts/feeds update -a
-          ./scripts/feeds install -a
-          
-          # Отдельно обновляем и устанавливаем modemfeed
-          ./scripts/feeds update modemfeed
-          ./scripts/feeds install -a -p modemfeed
-          
-          cat > .config << 'EOF'
-          CONFIG_TARGET_ramips=y
-          CONFIG_TARGET_ramips_mt76x8=y
-          CONFIG_TARGET_ramips_mt76x8_DEVICE_gl-mt300n-v2=y
-          
-          # Оптимизация компиляции
-          CONFIG_DEVEL=y
-          CONFIG_CCACHE=y
-          
-          # Базовая система и сеть
-          CONFIG_PACKAGE_dnsmasq-full=y
-          CONFIG_PACKAGE_dropbear=y
-          CONFIG_PACKAGE_firewall=y
-          CONFIG_PACKAGE_iptables=y
-          CONFIG_PACKAGE_ip-full=y
-          CONFIG_PACKAGE_ipset=y
-          
-          # Wi-Fi компоненты
-          CONFIG_PACKAGE_kmod-mt7628=y
-          CONFIG_PACKAGE_wpad-basic=y
-          CONFIG_PACKAGE_hostapd-common=y
-          CONFIG_PACKAGE_wireless-tools=y
-          CONFIG_PACKAGE_iwinfo=y
-          
-          # USB поддержка
-          CONFIG_PACKAGE_kmod-usb-core=y
-          CONFIG_PACKAGE_kmod-usb2=y
-          CONFIG_PACKAGE_kmod-usb-net=y
-          CONFIG_PACKAGE_kmod-usb-net-cdc-mbim=y
-          CONFIG_PACKAGE_kmod-usb-acm=y
-          
-          # LED поддержка
-          CONFIG_PACKAGE_kmod-leds-gpio=y
-          
-          # LuCI
-          CONFIG_PACKAGE_luci=y
-          CONFIG_PACKAGE_luci-base=y
-          CONFIG_PACKAGE_luci-mod-admin-full=y
-          CONFIG_PACKAGE_luci-mod-network=y
-          CONFIG_PACKAGE_luci-mod-status=y
-          CONFIG_PACKAGE_luci-mod-system=y
-          CONFIG_PACKAGE_luci-theme-bootstrap=y
-          CONFIG_PACKAGE_luci-i18n-base-ru=y
-          CONFIG_PACKAGE_luci-i18n-firewall-ru=y
-          CONFIG_PACKAGE_luci-i18n-status-ru=y
-          
-          # Пакеты Кошева для модемов
-          CONFIG_PACKAGE_xmm-modem=y
-          CONFIG_PACKAGE_luci-proto-xmm=y
-          CONFIG_PACKAGE_modeminfo=y
-          CONFIG_PACKAGE_luci-app-modeminfo=y
-          CONFIG_PACKAGE_modeminfo-serial-xmm=y
-          CONFIG_PACKAGE_modeminfo-serial-fibocom=y
-          CONFIG_PACKAGE_luci-i18n-modeminfo-ru=y
-          CONFIG_PACKAGE_atinout=y
-          CONFIG_PACKAGE_luci-app-atinout=y
-          CONFIG_PACKAGE_luci-i18n-atinout-ru=y
-          
-          # Отключаем IPv6
-          CONFIG_IPV6=n
-          CONFIG_PACKAGE_ip6tables=n
-          CONFIG_PACKAGE_odhcp6c=n
-          CONFIG_PACKAGE_luci-proto-ipv6=n
-          CONFIG_PACKAGE_odhcpd-ipv6only=n
-          
-          # Оптимизация и дополнительные утилиты
-          CONFIG_PACKAGE_zram-swap=y
-          CONFIG_PACKAGE_kmod-zram=y
-          CONFIG_TARGET_IMAGES_GZIP=y
-          CONFIG_PACKAGE_kmod-nls-base=y
-          CONFIG_TARGET_SQUASHFS_BLOCK_SIZE=256
-          CONFIG_PACKAGE_htop=y
-          CONFIG_PACKAGE_curl=y
-          CONFIG_PACKAGE_wget=y
-          EOF
-          
+          # Пересобираем конфигурацию
           make defconfig
 
       # Шаг 3: Собираем прошивку
@@ -205,13 +99,7 @@ jobs:
         env:
           FORCE_UNSAFE_CONFIGURE: 1
         run: |
-          # Собираем пакеты из modemfeed по одному
-          for package in xmm-modem luci-proto-xmm modeminfo-serial-xmm modeminfo-serial-fibocom modeminfo luci-app-modeminfo luci-i18n-modeminfo-ru atinout luci-app-atinout luci-i18n-atinout-ru; do
-            echo "Building $package..."
-            make package/feeds/modemfeed/$package/{clean,compile} V=s
-          done
-          
-          # Собираем прошивку
+          # Собираем все пакеты
           make download -j8
           make -j$(nproc) || make -j1 V=s
 
