@@ -73,7 +73,7 @@ jobs:
             zlib1g-dev \
             zstd
 
-      # Шаг 1: Клонируем SDK и инициализируем
+    # Шаг 1: Клонируем SDK и инициализируем
       - name: Setup GL.iNet SDK
         run: |
           git clone https://github.com/gl-inet/sdk.git
@@ -92,7 +92,6 @@ jobs:
           pwd
           echo "Looking for SDK directory:"
           find . -name "*ramips*" -type d
-        working-directory: sdk/1907/ramips
           # Добавляем feed для модемов
           echo "src-git modemfeed https://github.com/koshev-msk/modemfeed.git" >> feeds.conf.default
           
