@@ -53,7 +53,7 @@ jobs:
             flex \
             gawk \
             gcc \
-            genisoimage \
+            mkisofs \
             gettext \
             git \
             intltool \
