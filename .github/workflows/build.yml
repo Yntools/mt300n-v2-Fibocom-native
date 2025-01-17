@@ -79,10 +79,16 @@ jobs:
         run: |
           git clone https://github.com/gl-inet/sdk.git
           cd sdk
-          # Конвертируем CRLF в LF для скрипта напрямую через sed
+          # Показываем содержимое скрипта до изменений
+          echo "Before conversion:"
+          cat -A download.sh
+          # Конвертируем CRLF в LF
           sed -i 's/\r$//' download.sh
-          chmod +x download.sh
-          ./download.sh ramips-1907
+          # Показываем после конвертации
+          echo "After conversion:"
+          cat -A download.sh
+          # Пробуем выполнить
+          bash download.sh ramips-1907
           
           cd 1907/ramips
           # Добавляем feed для модемов
