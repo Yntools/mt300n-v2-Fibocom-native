@@ -93,7 +93,6 @@ jobs:
           echo "Looking for SDK directory:"
           find . -name "*ramips*" -type d
         working-directory: sdk/1907/ramips
-        run: |
           # Добавляем feed для модемов
           echo "src-git modemfeed https://github.com/koshev-msk/modemfeed.git" >> feeds.conf.default
           
