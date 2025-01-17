@@ -1,6 +1,6 @@
 name: Build GL-MT300N-V2 Custom Firmware
 # Created by: Yntools
-# Last updated: 2024-01-17 02:11:09
+# Last updated: 2024-01-17 02:21:14
 
 on:
   push:
@@ -12,7 +12,9 @@ on:
 jobs:
   build:
     runs-on: ubuntu-22.04
-    
+    env:
+      WORKDIR: /home/runner/work/mt300n-v2-Fibocom-native/mt300n-v2-Fibocom-native/workspace
+      
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -21,9 +23,9 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            workspace/openwrt-sdk-19.07.10-ramips-mt76x8_gcc-7.5.0_musl.Linux-x86_64/dl
-            workspace/openwrt-sdk-19.07.10-ramips-mt76x8_gcc-7.5.0_musl.Linux-x86_64/feeds
-          key: ${{runner.os}}-downloads-ramips1907-${{hashFiles('workspace/openwrt-sdk-19.07.10-ramips-mt76x8_gcc-7.5.0_musl.Linux-x86_64/feeds.conf.default')}}
+            ${{ env.WORKDIR }}/openwrt-sdk-19.07.10-ramips-mt76x8_gcc-7.5.0_musl.Linux-x86_64/dl
+            ${{ env.WORKDIR }}/openwrt-sdk-19.07.10-ramips-mt76x8_gcc-7.5.0_musl.Linux-x86_64/feeds
+          key: ${{runner.os}}-downloads-ramips1907-${{hashFiles('${{ env.WORKDIR }}/openwrt-sdk-19.07.10-ramips-mt76x8_gcc-7.5.0_musl.Linux-x86_64/feeds.conf.default')}}
           restore-keys: |
             ${{runner.os}}-downloads-ramips1907-
 
@@ -31,9 +33,9 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            workspace/openwrt-sdk-19.07.10-ramips-mt76x8_gcc-7.5.0_musl.Linux-x86_64/staging_dir
-            workspace/openwrt-sdk-19.07.10-ramips-mt76x8_gcc-7.5.0_musl.Linux-x86_64/build_dir
-          key: ${{runner.os}}-toolchain-ramips1907-${{hashFiles('workspace/openwrt-sdk-19.07.10-ramips-mt76x8_gcc-7.5.0_musl.Linux-x86_64/.config')}}
+            ${{ env.WORKDIR }}/openwrt-sdk-19.07.10-ramips-mt76x8_gcc-7.5.0_musl.Linux-x86_64/staging_dir
+            ${{ env.WORKDIR }}/openwrt-sdk-19.07.10-ramips-mt76x8_gcc-7.5.0_musl.Linux-x86_64/build_dir
+          key: ${{runner.os}}-toolchain-ramips1907-${{hashFiles('${{ env.WORKDIR }}/openwrt-sdk-19.07.10-ramips-mt76x8_gcc-7.5.0_musl.Linux-x86_64/.config')}}
           restore-keys: |
             ${{runner.os}}-toolchain-ramips1907-
 
@@ -72,13 +74,16 @@ jobs:
             wget \
             zlib1g-dev \
             zstd
+          
+          # Создаем символическую ссылку python -> python3
+          sudo ln -sf /usr/bin/python3 /usr/bin/python
 
       # Шаг 1: Клонируем SDK и инициализируем
       - name: Setup GL.iNet SDK
         run: |
           # Создаем рабочую директорию
-          mkdir -p workspace
-          cd workspace
+          mkdir -p "$WORKDIR"
+          cd "$WORKDIR"
           
           # Скачиваем SDK напрямую
           wget https://downloads.openwrt.org/releases/19.07.10/targets/ramips/mt76x8/openwrt-sdk-19.07.10-ramips-mt76x8_gcc-7.5.0_musl.Linux-x86_64.tar.xz
@@ -92,7 +97,7 @@ jobs:
 
       # Шаг 2: Конфигурируем сборку
       - name: Configure build
-        working-directory: workspace/openwrt-sdk-19.07.10-ramips-mt76x8_gcc-7.5.0_musl.Linux-x86_64
+        working-directory: ${{ env.WORKDIR }}/openwrt-sdk-19.07.10-ramips-mt76x8_gcc-7.5.0_musl.Linux-x86_64
         run: |
           # Создаем базовый feeds.conf.default если его нет
           [ ! -f feeds.conf.default ] && cat > feeds.conf.default << 'EOF'
@@ -197,7 +202,7 @@ jobs:
 
       # Шаг 3: Собираем прошивку
       - name: Build firmware
-        working-directory: workspace/openwrt-sdk-19.07.10-ramips-mt76x8_gcc-7.5.0_musl.Linux-x86_64
+        working-directory: ${{ env.WORKDIR }}/openwrt-sdk-19.07.10-ramips-mt76x8_gcc-7.5.0_musl.Linux-x86_64
         env:
           FORCE_UNSAFE_CONFIGURE: 1
         run: |
@@ -217,6 +222,5 @@ jobs:
         with:
           name: gl-mt300n-v2-firmware
           path: |
-            workspace/openwrt-sdk-19.07.10-ramips-mt76x8_gcc-7.5.0_musl.Linux-x86_64/bin/targets/ramips/mt76x8/*sysupgrade.bin
-            workspace/openwrt-sdk-19.07.10-ramips-mt76x8_gcc-7.5.0_musl.Linux-x86_64/bin/targets/ramips/mt76x8/*factory.bin
-          retention-days: 5
+            ${{ env.WORKDIR }}/openwrt-sdk-19.07.10-ramips-mt76x8_gcc-7.5.0_musl.Linux-x86_64/bin/targets/ramips/mt76x8/*sysupgrade.bin
+            ${{ env.WORKDIR }}/openwrt-sdk-19.07.10-ramips-mt76x8_gcc-7.5.0_musl.Linux-x86_
