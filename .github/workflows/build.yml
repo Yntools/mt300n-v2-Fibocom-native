@@ -1,6 +1,6 @@
 name: Build GL-MT300N-V2 Custom Firmware
 # Created by: Yntools
-# Last updated: 2024-01-17 10:26:23
+# Last updated: 2024-01-17 12:17:30
 
 on:
   push:
@@ -44,27 +44,37 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y \
+            asciidoc \
+            bash \
+            bc \
+            binutils \
             build-essential \
-            ccache \
-            ecj \
+            bzip2 \
             fastjar \
-            file \
-            g++ \
+            flex \
             gawk \
+            gcc \
             gettext \
             git \
-            java-propose-classpath \
-            libelf-dev \
+            intltool \
+            libgtk2.0-dev \
             libncurses5-dev \
             libssl-dev \
+            make \
+            patch \
+            perl-modules \
+            python2.7-dev \
             python3 \
             python3-distutils \
             python3-setuptools \
             rsync \
+            ruby \
+            sdcc \
             subversion \
-            time \
             unzip \
+            util-linux \
             wget \
+            xsltproc \
             zlib1g-dev
 
       # Шаг 1: Клонируем SDK и инициализируем
@@ -124,16 +134,45 @@ jobs:
         env:
           FORCE_UNSAFE_CONFIGURE: 1
         run: |
-          # Собираем все пакеты
-          make download -j8
-          make -j$(nproc) || make -j1 V=s
+          # Очищаем кэш сборки если он есть
+          make clean
+          
+          # Обновляем feeds еще раз перед сборкой
+          ./scripts/feeds update -a
+          ./scripts/feeds install -a
+          
+          # Скачиваем исходники с подробным выводом
+          make download -j1 V=s
+          
+          # Проверяем наличие директории dl/
+          ls -la dl/
+          
+          # Собираем только нужные нам пакеты
+          make package/modeminfo/{clean,compile} V=s
+          make package/luci-app-modeminfo/{clean,compile} V=s
+          make package/modeminfo-serial-xmm/{clean,compile} V=s
+          make package/modeminfo-serial-fibocom/{clean,compile} V=s
+          make package/luci-i18n-modeminfo-ru/{clean,compile} V=s
+          make package/atinout/{clean,compile} V=s
+          make package/luci-app-atinout/{clean,compile} V=s
+          make package/luci-i18n-atinout-ru/{clean,compile} V=s
 
-      # Шаг 4: Собираем артефакты
+      # Шаг 4: Проверяем результаты сборки
+      - name: Check build results
+        working-directory: ${{ env.WORKDIR }}/${{ env.SDK_PATH }}
+        run: |
+          echo "Checking built packages:"
+          find bin/packages/ -type f -name "*.ipk" -ls
+          
+          echo "Checking logs:"
+          find logs/ -type f -name "*.txt" -ls
+
+      # Шаг 5: Собираем артефакты
       - name: Collect artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: gl-mt300n-v2-firmware
+          name: gl-mt300n-v2-packages
           path: |
-            ${{ env.WORKDIR }}/${{ env.SDK_PATH }}/bin/targets/ramips/mt76x8/*sysupgrade.bin
-            ${{ env.WORKDIR }}/${{ env.SDK_PATH }}/bin/targets/ramips/mt76x8/*factory.bin
+            ${{ env.WORKDIR }}/${{ env.SDK_PATH }}/bin/packages/**/*.ipk
+            ${{ env.WORKDIR }}/${{ env.SDK_PATH }}/logs/*.txt
           retention-days: 5
